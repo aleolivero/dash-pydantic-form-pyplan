@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Callable
 from functools import partial
-from typing import Literal
+from typing import Literal, Union
 
 import dash_mantine_components as dmc
 from dash import (
@@ -51,11 +51,11 @@ class ListField(BaseField):
             "Should be set to 'scalar' for a list of scalars."
         ),
     )
-    fields_repr: dict[str, dict | BaseField] | None = Field(
+    fields_repr: Union[dict[str, dict | BaseField], None] = Field(
         default=None,
         description="Fields representation, mapping between field name and field representation for the nested fields.",
     )
-    sections: Sections | None = Field(default=None, description="Sub-form sections.")
+    sections: Union[Sections, None] = Field(default=None, description="Sub-form sections.")
     items_deletable: bool = Field(default=True, description="Whether the items can be deleted.")
     items_creatable: bool = Field(default=True, description="Whether new items can be created.")
 
@@ -94,10 +94,10 @@ class ListField(BaseField):
         parent: str,
         index: int,
         value: BaseModel,
-        fields_repr: dict[str, dict | BaseField] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, dict | BaseField], None] = None,
+        sections: Union[Sections, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         **_kwargs,
     ):
         """Create an accordion item for the model list field."""
@@ -156,10 +156,10 @@ class ListField(BaseField):
         field: str,
         parent: str,
         index: int,
-        fields_repr: dict[str, dict | BaseField] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, dict | BaseField], None] = None,
+        sections: Union[Sections, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         **_kwargs,
     ):
         """Create an item with bare forms for the model list field."""
@@ -206,10 +206,10 @@ class ListField(BaseField):
         index: int,
         value: BaseModel,
         opened: bool = False,
-        fields_repr: dict[str, dict | BaseField] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, dict | BaseField], None] = None,
+        sections: Union[Sections, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         **_kwargs,
     ):
         """Create an item with bare forms for the model list field."""
@@ -299,7 +299,7 @@ class ListField(BaseField):
         parent: str,
         index: int,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         input_kwargs: dict,
         **kwargs,
     ):

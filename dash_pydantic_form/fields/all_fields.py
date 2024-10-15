@@ -32,14 +32,14 @@ from .transferlist_field import TransferListField as TransferList
 
 def deprecated_field_factory(name: str, base_class: type):
     """Create a field class with a deprecation warning message."""
-    old_post_init = getattr(base_class, "model_post_init", None)
+    old_post_init = getattr(base_class, "__init__", None)
 
-    def post_init(self, _context):
+    def post_init(self, *args, **kwargs):
         logging.warning(f"{name} is deprecated, use {base_class.__name__.removesuffix('Field')} instead.")
         if old_post_init is not None:
-            old_post_init(self, _context)
+            old_post_init(self, *args, **kwargs)
 
-    newclass = type(name, (base_class,), {"model_post_init": post_init})
+    newclass = type(name, (base_class,), {"__init__": post_init})
     return newclass
 
 

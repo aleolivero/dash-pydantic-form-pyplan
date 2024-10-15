@@ -43,8 +43,8 @@ def form_base_id(part: str, aio_id: str, form_id: str, parent: str = ""):
     return {"part": part, "aio_id": aio_id, "form_id": form_id, "parent": parent}
 
 
-Children_ = Component | str | int | float
-Children = Children_ | list[Children_]
+Children_ = Union[Component, str, int, float]
+Children = Union[Children_, list[Children_]]
 SectionRender = Literal["accordion", "tabs", "steps"]
 Position = Literal["top", "bottom", "none"]
 
@@ -54,7 +54,7 @@ class ModelForm(html.Div):
 
     Parameters
     ----------
-    item: BaseModel | type[BaseModel]
+    item: Union[BaseModel, type[BaseModel]]
         The model to create the form from, can be the model class or an instance of the class.
         If the class is passed, the form will be empty. If an instance is passed, the form will be pre-filled
         with existing values.
@@ -63,7 +63,7 @@ class ModelForm(html.Div):
     form_id: str
         Form ID, can be used to create multiple forms on the same page. When working with databases
         this could be the document / record ID.
-    fields_repr: dict[str, dict | BaseField] | None
+    fields_repr: dict[str, Union[dict, BaseField]] | None
         Mapping between field name and field representation. If not provided, default field
         representations will be used based on the field annotation.
         See `fields.get_default_repr`.
@@ -101,22 +101,22 @@ class ModelForm(html.Div):
 
     def __init__(  # noqa: PLR0912, PLR0913, PLR0915
         self,
-        item: BaseModel | type[BaseModel],
+        item: Union[BaseModel, type[BaseModel]],
         aio_id: str,
         form_id: str,
         path: str = "",
-        fields_repr: dict[str, Union["BaseField", dict]] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, Union[BaseField, dict]], None] = None,
+        sections: Union[Sections, None] = None,
         submit_on_enter: bool = False,
-        discriminator: str | None = None,
-        excluded_fields: list[str] | None = None,
-        container_kwargs: dict | None = None,
-        read_only: bool | None = None,
-        debounce_inputs: int | None = None,
+        discriminator: Union[str, None] = None,
+        excluded_fields: Union[list[str], None] = None,
+        container_kwargs: Union[dict, None] = None,
+        read_only: Union[bool, None] = None,
+        debounce_inputs: Union[int, None] = None,
     ) -> None:
         with contextlib.suppress(Exception):
             if issubclass(item, BaseModel):
-                item = item.model_construct()
+                item = item()  # En Pydantic 1.x, se usa __init__ en lugar de model_construct
 
         fields_repr = fields_repr or {}
 
@@ -196,19 +196,19 @@ class ModelForm(html.Div):
         path: str,
         subitem_cls: type[BaseModel],
         disc_vals: list[str],
-        fields_repr: dict[str, dict | BaseField],
+        fields_repr: dict[str, Union[dict, BaseField]],
         excluded_fields: list[str],
-        discriminator: str | None,
-        read_only: bool | None,
-        debounce_inputs: int | None,
+        discriminator: Union[str, None],
+        read_only: Union[bool, None],
+        debounce_inputs: Union[int, None],
     ) -> dict[str, Component]:
         """Render each field in the form."""
         from dash_pydantic_form.fields import get_default_repr
 
-        excluded_fields = (excluded_fields or []) + subitem_cls.model_config.get("private_fields", [])
+        excluded_fields = (excluded_fields or []) + subitem_cls.Config.allow_mutation
 
         field_inputs = {}
-        for field_name, field_info in subitem_cls.model_fields.items():
+        for field_name, field_info in subitem_cls.__fields__.items():
             if field_name in (excluded_fields or []):
                 continue
             more_kwargs = {}
@@ -220,7 +220,7 @@ class ModelForm(html.Div):
             # Also add required metadata for discriminator callback
             if disc_vals and field_name == discriminator:
                 field_info = deepcopy(field_info)  # noqa: PLW2901
-                field_info.annotation = Literal[disc_vals]
+                field_info.type_ = Literal[disc_vals]
                 more_kwargs |= {"n_cols": 4, "field_id_meta": "discriminator"}
             if field_name in fields_repr:
                 if isinstance(fields_repr[field_name], dict):
@@ -228,7 +228,7 @@ class ModelForm(html.Div):
                 else:
                     field_repr = fields_repr[field_name]
                     if more_kwargs:
-                        field_repr = field_repr.__class__(**(field_repr.model_dump() | more_kwargs))
+                        field_repr = field_repr.__class__(**(field_repr.dict() | more_kwargs))
             else:
                 field_repr = get_default_repr(field_info, **more_kwargs)
 
@@ -295,7 +295,7 @@ class ModelForm(html.Div):
         *,
         subitem_cls: type[BaseModel],
         fields_repr: dict[str, dict | BaseField],
-        sections: Sections | None,
+        sections: Union[Sections, None],
         item: BaseModel,
         aio_id: str,
         form_id: str,
@@ -313,12 +313,12 @@ class ModelForm(html.Div):
         fields_repr_dicts = (
             {
                 field_name: (
-                    get_default_repr(subitem_cls.model_fields[field_name], **field_repr)
+                    get_default_repr(subitem_cls.__fields__[field_name], **field_repr)
                     if isinstance(field_repr, dict)
                     else field_repr
-                ).to_dict()
+                ).dict()
                 for field_name, field_repr in fields_repr.items()
-                if field_name in subitem_cls.model_fields
+                if field_name in subitem_cls.__fields__
             }
             if fields_repr
             else None
@@ -327,7 +327,7 @@ class ModelForm(html.Div):
         children.append(
             dcc.Store(
                 data={
-                    "sections": sections.model_dump(mode="json") if sections else None,
+                    "sections": sections.dict() if sections else None,
                     "fields_repr": fields_repr_dicts,
                 },
                 id=cls.ids.form_specs_store(aio_id, form_id, path),

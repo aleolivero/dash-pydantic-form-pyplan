@@ -4,11 +4,9 @@ from copy import deepcopy
 from datetime import date, time
 from enum import Enum
 from numbers import Number
-from types import UnionType
 from typing import Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ValidationError, create_model
-from pydantic_core import PydanticUndefined
 
 SEP = ":"
 
@@ -31,23 +29,23 @@ class Type(Enum):
     UNKOWN_DICT = "unkown_dict"
 
     @classmethod
-    def classify(cls, annotation: type, discriminator: str | None = None, depth: int = 0) -> bool:  # noqa: PLR0911, PLR0912
+    def classify(cls, annotation: type, discriminator: str = None, depth: int = 0) -> bool:  # noqa: PLR0911, PLR0912
         """Classify a value as a field type."""
         annotation = get_non_null_annotation(annotation)
 
-        if is_subclass(annotation, str | Number | bool | date | time):
+        if is_subclass(annotation, (str, Number, bool, date, time)):
             return cls.SCALAR
 
-        if (get_origin(annotation) == Literal) | is_subclass(annotation, Enum):
+        if (get_origin(annotation) == Literal) or is_subclass(annotation, Enum):
             return cls.LITERAL
 
         if is_subclass(annotation, BaseModel):
             return cls.MODEL
 
-        if get_origin(annotation) in [Union, UnionType]:
+        if get_origin(annotation) in [Union]:
             if discriminator and all(is_subclass(x, BaseModel) for x in get_args(annotation)):
                 return cls.DISCRIMINATED_MODEL
-            if all(is_subclass(x, str | Number) for x in get_args(annotation)):
+            if all(is_subclass(x, (str, Number)) for x in get_args(annotation)):
                 return cls.SCALAR
 
         if get_origin(annotation) is list and not depth:
@@ -108,7 +106,7 @@ def get_non_null_annotation(annotation: type[Any]) -> type[Any]:
 
     e.g., get_non_null_annotation(Optional[str]) = str
     """
-    if get_origin(annotation) in [Union, UnionType]:
+    if get_origin(annotation) in [Union]:
         args = tuple(x for x in get_args(annotation) if x is not type(None))
         if len(args) == 1:
             return args[0]
@@ -117,19 +115,7 @@ def get_non_null_annotation(annotation: type[Any]) -> type[Any]:
 
 
 def get_model_value(item: BaseModel, field: str, parent: str, allow_default: bool = True):  # noqa: PLR0911
-    """Get the value of a model (parent, field) pair.
-
-    Parameters
-    ----------
-    item: BaseModel
-        The object to get the value from
-    field: str
-        The field name
-    parent: str
-        The parent of the field (for nested fields), in dot notation
-    allow_default: bool
-        Allow to return the default value, when the object has been created with model_construct.
-    """
+    """Get the value of a model (parent, field) pair."""
     try:
         subitem = get_subitem(item, parent)
         if isinstance(subitem, BaseModel):
@@ -144,8 +130,8 @@ def get_model_value(item: BaseModel, field: str, parent: str, allow_default: boo
             subitem_cls = get_subitem_cls(item.__class__, parent, item=item)
             if not is_subclass(subitem_cls, BaseModel):
                 return None
-            field_info = subitem_cls.model_fields[field]
-            if field_info.default is not PydanticUndefined:
+            field_info = subitem_cls.__fields__[field]
+            if field_info.default is not None:
                 return field_info.default
             if field_info.default_factory:
                 return field_info.default_factory()
@@ -201,15 +187,15 @@ def get_subitem_cls(model: type[BaseModel], parent: str, item: BaseModel | None 
     second_part = None
 
     if len(path) == 1:
-        ann = get_non_null_annotation(model.model_fields[first_part].annotation)
+        ann = get_non_null_annotation(model.__fields__[first_part].type_)
         return ann
 
     second_part = path[1]
     if isinstance(second_part, str) and second_part.isdigit():
         second_part = int(second_part)
 
-    field_info = model.model_fields[first_part]
-    first_annotation = get_non_null_annotation(field_info.annotation)
+    field_info = model.__fields__[first_part]
+    first_annotation = get_non_null_annotation(field_info.type_)
     try:
         subitem = get_subitem(item, first_part) if item is not None else None
     except:  # noqa: E722
@@ -232,7 +218,7 @@ def get_subitem_cls(model: type[BaseModel], parent: str, item: BaseModel | None 
             SEP.join(path[2:]),
             item=subitem,
         )
-    if get_origin(first_annotation) is dict and (isinstance(second_part, int | str)) and get_args(first_annotation):
+    if get_origin(first_annotation) is dict and (isinstance(second_part, (int, str))) and get_args(first_annotation):
         return get_subitem_cls(
             get_non_null_annotation(get_args(first_annotation)[1]),
             SEP.join(path[2:]),
@@ -246,10 +232,10 @@ def handle_discriminated(model: type[BaseModel], parent: str, annotation: type, 
     all_vals = set()
     out = None
     for possible in get_args(annotation):
-        if not get_origin(possible.model_fields[disc_field].annotation) == Literal:
+        if not get_origin(possible.__fields__[disc_field].type_) == Literal:
             raise ValueError("Discriminator must be a Literal")
 
-        vals = get_args(possible.model_fields[disc_field].annotation)
+        vals = get_args(possible.__fields__[disc_field].type_)
         all_vals = all_vals.union(vals)
         if disc_val is not None and disc_val in vals:
             out = possible
@@ -301,11 +287,11 @@ def model_construct_recursive(data: dict, data_model: type[BaseModel]):
     """Construct a model recursively."""
     updated = deepcopy(data)
     for key, val in data.items():
-        if key not in data_model.model_fields:
+        if key not in data_model.__fields__:
             continue
 
-        field_info = data_model.model_fields[key]
-        ann = get_non_null_annotation(field_info.annotation)
+        field_info = data_model.__fields__[key]
+        ann = get_non_null_annotation(field_info.type_)
         type_ = Type.classify(ann, field_info.discriminator)
         if type_ == Type.MODEL:
             updated[key] = model_construct_recursive(val, ann)
@@ -313,10 +299,10 @@ def model_construct_recursive(data: dict, data_model: type[BaseModel]):
             disc_val = val[field_info.discriminator]
             out = None
             for possible in get_args(ann):
-                if not get_origin(possible.model_fields[field_info.discriminator].annotation) == Literal:
+                if not get_origin(possible.__fields__[field_info.discriminator].type_) == Literal:
                     raise ValueError("Discriminator must be a Literal")
 
-                if disc_val in get_args(possible.model_fields[field_info.discriminator].annotation):
+                if disc_val in get_args(possible.__fields__[field_info.discriminator].type_):
                     out = possible
                     break
             if out is not None:
@@ -324,13 +310,13 @@ def model_construct_recursive(data: dict, data_model: type[BaseModel]):
         elif type_ == Type.MODEL_LIST and isinstance(val, list):
             updated[key] = [model_construct_recursive(vv, get_args(ann)[0]) for vv in val]
 
-    return data_model.model_construct(**updated)
+    return data_model(**updated)
 
 
 def from_form_data(data: dict, data_model: type[BaseModel]):
     """Construct a model from form data, allowing to use default values when validation of a field fails."""
     try:
-        return data_model.model_validate(data)
+        return data_model(**data)
     except ValidationError as exc:
         data_with_defaults = deepcopy(data)
         defaulted_fields = []
@@ -345,8 +331,8 @@ def from_form_data(data: dict, data_model: type[BaseModel]):
                     continue
                 if not is_subclass(failing_model, BaseModel):
                     continue
-                field = failing_model.model_fields[parts_extract[-1]]
-                if field.default != PydanticUndefined:
+                field = failing_model.__fields__[parts_extract[-1]]
+                if field.default is not None:
                     set_at_path(data_with_defaults, path, field.default)
                     defaulted_fields.append(path)
                     break
@@ -361,7 +347,7 @@ def from_form_data(data: dict, data_model: type[BaseModel]):
                 defaulted_fields,
                 data_model.__name__,
             )
-        return data_model.model_validate(data_with_defaults)
+        return data_model(**data_with_defaults)
 
 
 def set_at_path(data: dict, path: str, value: Any):

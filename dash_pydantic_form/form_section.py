@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Union
 
 from dash_iconify import DashIconify
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ class FormSection(BaseModel):
         Section name.
     fields: list[str]
         List of field names from the pydantic model.
-    icon: str | DashIconify | None
+    icon: Union[str, DashIconify, None]
         Section icon displayed before the section name, optional.
     default_open: bool
         Whether the section is open by default, only used for accordion sections.
@@ -24,10 +24,11 @@ class FormSection(BaseModel):
 
     name: str
     fields: list[str]
-    icon: str | DashIconify | None = None
+    icon: Union[str, DashIconify, None] = None
     default_open: bool = False
 
-    model_config = {"arbitrary_types_allowed": True}
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class Sections(BaseModel):
@@ -51,9 +52,9 @@ class Sections(BaseModel):
     sections: list[FormSection]
     remaining_fields_position: Position = "top"
     render: SectionRender = "accordion"
-    render_kwargs: dict | None = None
+    render_kwargs: Union[dict, None] = None
 
-    def model_post_init(self, _context):
-        """Model post init."""
+    def __init__(self, **data):
+        super().__init__(**data)
         if self.render_kwargs is None:
             self.render_kwargs = {}

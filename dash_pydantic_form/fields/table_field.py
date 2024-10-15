@@ -3,14 +3,25 @@ import io
 import uuid
 from datetime import date, datetime, time
 from functools import partial
-from typing import get_args
+from typing import get_args, Optional
 
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 import pandas as pd
-from dash import MATCH, ClientsideFunction, Input, Output, State, callback, clientside_callback, dcc, html, no_update
+from dash import (
+    MATCH,
+    ClientsideFunction,
+    Input,
+    Output,
+    State,
+    callback,
+    clientside_callback,
+    dcc,
+    html,
+    no_update,
+)
 from dash.development.base_component import Component
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field, ConfigDict
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
@@ -41,17 +52,17 @@ class JSFunction(BaseModel):
 class TableField(BaseField):
     """Editable table input field attributes and rendering."""
 
-    fields_repr: dict[str, dict | BaseField] | None = Field(
+    fields_repr: Optional[dict[str, dict | BaseField]] = Field(
         default=None,
         description="Fields representation, mapping between field name and field representation for the nested fields.",
     )
     with_upload: bool = Field(default=True, description="Whether to allow uploading a CSV file.")
     rows_editable: bool = Field(default=True, description="Whether to allow adding/removing rows.")
     table_height: int = Field(default=300, description="Table rows height in pixels.")
-    column_defs_overrides: dict[str, dict] | None = Field(default=None, description="Ag-grid column_defs overrides.")
-    dynamic_options: dict[str, JSFunction] | None = Field(
+    column_defs_overrides: Optional[dict[str, dict]] = Field(default=None, description="Ag-grid column_defs overrides.")
+    dynamic_options: Optional[dict[str, JSFunction]] = Field(
         default=None,
-        description="Clientside function to use for dynamic options, defined per columnn."
+        description="Clientside function to use for dynamic options, defined per column."
         " The functions should take as argument the original options and the row data."
         " The functions should be defined on a sub-namespace of dash_clientside.",
     )
@@ -86,7 +97,7 @@ class TableField(BaseField):
         form_id: str,
         field: str,
         parent: str = "",
-        field_info: FieldInfo | None = None,
+        field_info: Optional[FieldInfo] = None,
     ) -> Component:
         """Create a form field of type Editable Table input to interact with the model."""
         value = self.get_value(item, field, parent) or []
@@ -237,7 +248,7 @@ class TableField(BaseField):
                 ),
                 dag.AgGrid(
                     id=self.ids.editable_table(aio_id, form_id, field, parent=parent),
-                    columnDefs=(
+                    columnDefs=( 
                         [
                             {
                                 "headerName": "",
@@ -400,7 +411,7 @@ class TableField(BaseField):
                     "cellEditorParams": field_repr.input_kwargs,
                     "filter": "agDateColumnFilter",
                     "filterParams": {"comparator": {"function": "PydfDateComparator"}},
-                },
+                }
             )
 
         # update with custom defs

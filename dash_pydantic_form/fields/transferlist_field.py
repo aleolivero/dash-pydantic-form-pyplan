@@ -2,7 +2,7 @@ import json
 import logging
 from collections.abc import Callable
 from functools import partial
-from typing import ClassVar, Literal
+from typing import ClassVar, Literal, Optional, Union
 
 import dash_mantine_components as dmc
 from dash import (
@@ -45,19 +45,19 @@ class TransferListField(BaseField):
     base_component = None
     full_width = True
 
-    titles: tuple[str, str] | None = Field(default=None, description="List titles.")
-    search_placeholder: str | None = Field(default=None, description="Search placeholder.")
+    titles: Optional[tuple[str, str]] = Field(default=None, description="List titles.")
+    search_placeholder: Optional[str] = Field(default=None, description="Search placeholder.")
     show_transfer_all: bool = Field(default=True, description="Show transfer all button.")
     list_height: int = Field(default=200, description="List rows height in pixels.")
     max_items: int = Field(default=0, description="Max number of items to display.")
-    radius: int | str | None = Field(default=None, description="List border-radius.")
-    placeholder: str | None = Field(default=None, description="Placeholder text when no item is available.")
-    nothing_found: str | None = Field(default=None, description="Text to display when no item is available.")
+    radius: Optional[Union[int, str]] = Field(default=None, description="List border-radius.")
+    placeholder: Optional[str] = Field(default=None, description="Placeholder text when no item is available.")
+    nothing_found: Optional[str] = Field(default=None, description="Text to display when no item is available.")
     transfer_all_matching_filters: bool = Field(default=True, description="Transfer all when filters match.")
-    options_labels: dict | None = Field(default=None, description="Label for the options list.")
+    options_labels: Optional[dict] = Field(default=None, description="Label for the options list.")
     data_getter: str = Field(description="Data getter name, needs to have been registered with register_data_getter.")
 
-    getters: ClassVar[dict[str, Callable[[str | None, int | None], list[str]]]] = {}
+    getters: ClassVar[dict[str, Callable[[Optional[str], Optional[int]], list[str]]]] = {}
 
     class ids:
         """TransferListField ids."""
@@ -72,8 +72,8 @@ class TransferListField(BaseField):
     @classmethod
     def register_data_getter(
         cls,
-        data_getter: Callable[[str | None, int | None], list[str]],
-        name: str | None = None,
+        data_getter: Callable[[Optional[str], Optional[int]], list[str]],
+        name: Optional[str] = None,
     ):
         """Register a data_getter."""
         name = name or str(data_getter)
@@ -82,7 +82,7 @@ class TransferListField(BaseField):
         cls.getters[name] = data_getter
 
     @classmethod
-    def get_data(cls, data_getter: str, value: list, search: str | None = None, max_items: int | None = None) -> dict:
+    def get_data(cls, data_getter: str, value: list, search: Optional[str] = None, max_items: Optional[int] = None) -> dict:
         """Retrieve data from Literal annotation if data is not present in input_kwargs."""
         try:
             getter = cls.getters[data_getter]
@@ -106,7 +106,7 @@ class TransferListField(BaseField):
         form_id: str,
         field: str,
         parent: str = "",
-        field_info: FieldInfo | None = None,  # noqa: ARG002
+        field_info: Optional[FieldInfo] = None,  # noqa: ARG002
     ) -> Component:
         value = self.get_value(item, field, parent) or []
         data_left = self.get_data(self.data_getter, value, search=None, max_items=self.max_items)
@@ -185,7 +185,7 @@ class TransferListField(BaseField):
         )
 
     @classmethod
-    def checkbox(cls, value: dict | str, options_labels: dict | None = None):
+    def checkbox(cls, value: Union[dict, str], options_labels: Optional[dict] = None):
         """Checkbox for the checklist.
 
         :param value: value of the checkbox, dict with keys label and value
@@ -213,8 +213,8 @@ class TransferListField(BaseField):
         side: Literal["left", "right"],
         value: list[dict],
         list_height: int,
-        max_items: int | None = None,
-        options_labels: dict | None = None,
+        max_items: Optional[int] = None,
+        options_labels: Optional[dict] = None,
     ):
         """Checklist in a scrollarea for each list of the transfer.
 

@@ -6,15 +6,15 @@ authors = [
     {name = "Renaud Lainé", email = "renaudlaine31@gmail.com"},
 ]
 readme = "README.md"
-requires-python =  ">=3.10,<3.13"
+requires-python = ">=3.9,<3.10"
 license = {file = "LICENSE"}
 dependencies = [
-    "dash>=2.16",
-    "dash_mantine_components>=0.14.4",
-    "dash_iconify",
-    "dash_ag_grid>=31",
-    "pandas",
-    "pydantic==2.*",
+  "dash>=2.16",
+  "dash_mantine_components>=0.14.4",
+  "dash_iconify",
+  "dash_ag_grid>=31",
+  "pandas",
+  "pydantic==1.10.13",
 ]
 
 [project.optional-dependencies]

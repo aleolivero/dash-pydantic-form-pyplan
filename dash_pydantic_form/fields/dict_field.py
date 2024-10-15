@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Literal
+from typing import Literal, Union
 
 import dash_mantine_components as dmc
 from dash import dcc, html
@@ -36,11 +36,11 @@ class DictField(ListField):
         field: str,
         parent: str,
         index: int,
-        fields_repr: dict[str, dict | BaseField] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, dict | BaseField], None] = None,
+        sections: Union[Sections, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
-        key: str | None = None,
+        read_only: Union[bool, None] = None,
+        key: Union[str, None] = None,
         **kwargs,
     ):
         """Create an item with bare forms for the model dict field."""
@@ -73,12 +73,12 @@ class DictField(ListField):
         field: str,
         parent: str,
         index: int,
-        key: str | None = None,
+        key: Union[str, None] = None,
         opened: bool = False,
-        fields_repr: dict[str, dict | BaseField] | None = None,
-        sections: Sections | None = None,
+        fields_repr: Union[dict[str, dict | BaseField], None] = None,
+        sections: Union[Sections, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         **kwargs,
     ):
         """Create an item with bare forms for the model dict field."""
@@ -112,9 +112,9 @@ class DictField(ListField):
         field: str,
         parent: str,
         index: int,
-        key: str | None = None,
+        key: Union[str, None] = None,
         items_deletable: bool = True,
-        read_only: bool | None = None,
+        read_only: Union[bool, None] = None,
         input_kwargs: dict,
         **kwargs,
     ):
@@ -147,8 +147,8 @@ class DictField(ListField):
         field: str,
         parent: str,
         index: int,
-        key: str | None = None,
-        read_only: bool | None = None,
+        key: Union[str, None] = None,
+        read_only: Union[bool, None] = None,
         **input_kwargs,
     ):
         """Create an input for the key of a dict item."""
@@ -279,7 +279,7 @@ class DictField(ListField):
             contents = self._contents_renderer(self.render_type)
 
         # Create a template item to be used clientside when adding new items
-        template = self.render_type_item_mapper(self.render_type)(
+        template = self.render_type_item_mapper(self.render_type)(  # noqa: PLR0913
             item=item.__class__.model_construct(),
             aio_id=aio_id,
             form_id=form_id,

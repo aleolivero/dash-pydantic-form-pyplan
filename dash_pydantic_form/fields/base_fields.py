@@ -13,7 +13,7 @@ from typing import Any, ClassVar, Literal, Union, get_args, get_origin
 import dash_mantine_components as dmc
 from dash import ALL, MATCH, ClientsideFunction, Input, Output, State, clientside_callback, html
 from dash.development.base_component import Component
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
 from pydantic.types import annotated_types
 from pydantic_core import PydanticUndefined
@@ -49,22 +49,22 @@ VisibilityFilter = tuple[str, FilterOperator, Any]
 class BaseField(BaseModel):
     """Base field representation class."""
 
-    base_component: ClassVar[type[Component] | None] = None
+    base_component: ClassVar[Union[type[Component], None]] = None
     reserved_attributes: ClassVar = ("value", "label", "description", "id", "required")
     full_width: ClassVar[bool] = False
 
-    title: str | None = Field(
+    title: Union[str, None] = Field(
         default=None, description="Field label, overrides the title defined in the pydantic Field."
     )
-    description: str | None = Field(
+    description: Union[str, None] = Field(
         default=None, description="Field helper text, overrides the description defined in the pydantic Field."
     )
-    required: bool | None = Field(
+    required: Union[bool, None] = Field(
         default=None,
         description="Whether to display a required asterisk. If not provided, uses pydantic's field `is_required`.",
     )
-    n_cols: int | None = Field(default=None, description="Number of columns in the form, out of 4. Default 2.")
-    visible: bool | VisibilityFilter | list[VisibilityFilter] | None = Field(
+    n_cols: Union[int, None] = Field(default=None, description="Number of columns in the form, out of 4. Default 2.")
+    visible: Union[bool, VisibilityFilter, list[VisibilityFilter], None] = Field(
         default=None,
         description=(
             "Define visibility conditions based on other form fields.\n"
@@ -84,17 +84,18 @@ class BaseField(BaseModel):
             ""
         ),
     )
-    input_kwargs: dict | None = Field(
+    input_kwargs: Union[dict, None] = Field(
         default=None,
         description=(
             "Arguments to be passed to the underlying rendered component. "
             "NOTE: these are updated with extra arguments passed to the field."
         ),
     )
-    field_id_meta: str | None = Field(default=None, description="Optional str to be set in the field id's 'meta' key.")
+    field_id_meta: Union[str, None] = Field(default=None, description="Optional str to be set in the field id's 'meta' key.")
     read_only: bool = Field(default=False, description="Read only field.")
 
-    model_config = ConfigDict(extra="allow")
+    class Config:
+        extra = "allow"
 
     @classmethod
     def __pydantic_init_subclass__(cls):
@@ -108,8 +109,8 @@ class BaseField(BaseModel):
 
         cls.__doc__ = result
 
-    def model_post_init(self, _context):
-        """Model post init."""
+    def __init__(self, **data):
+        super().__init__(**data)
         if self.n_cols is None:
             self.n_cols = 4 if self.full_width else 2
         if self.input_kwargs is None:
@@ -154,10 +155,9 @@ class BaseField(BaseModel):
         form_id: str,
         field: str,
         parent: str = "",
-        field_info: FieldInfo,
+        field_info: Union[FieldInfo, None] = None,
     ) -> Component:
         """Render the field."""
-        """Create a form input to interact with the field, and conditional visibility wrapper."""
         title = None
         if os.getenv("DEBUG"):
             title = f"Field path: {get_fullpath(parent, field)}"
@@ -206,7 +206,7 @@ class BaseField(BaseModel):
         form_id: str,
         field: str,
         parent: str = "",
-        field_info: FieldInfo | None = None,
+        field_info: Union[FieldInfo, None] = None,
     ) -> Component:
         """Create a form input to interact with the field."""
         if not self.base_component:
@@ -219,7 +219,6 @@ class BaseField(BaseModel):
             and self.base_component is not None
             and (
                 "readOnly" not in inspect.signature(self.base_component).parameters
-                # NOTE: readOnly not working on SegmentedControl in 0.14.5
                 or self.base_component is dmc.SegmentedControl
             )
         ):
@@ -389,7 +388,7 @@ class BaseField(BaseModel):
 
         return inputs, title
 
-    def get_title(self, field_info: FieldInfo, field_name: str | None = None) -> str:
+    def get_title(self, field_info: FieldInfo, field_name: Union[str, None] = None) -> str:
         """Get the input title."""
         if self.title is not None:
             return self.title or None
@@ -488,14 +487,6 @@ class ColorField(BaseField):
 
     base_component = dmc.ColorInput
 
-    # @staticmethod
-    # def _get_value_repr(value: Any, field_info: FieldInfo):  # noqa: ARG004
-    #     return dmc.Group(
-    #         [dmc.Badge(color=value, p=0, h="1rem", w="1rem", radius="xs"), dmc.Text(value, size="sm")],
-    #         gap="sm",
-    #         align="center",
-    #     )
-
 
 class SliderField(BaseField):
     """Slider field."""
@@ -534,9 +525,8 @@ class DateField(BaseField):
 
     base_component = dmc.DateInput
 
-    def model_post_init(self, _context):
-        """Add defaults for date input."""
-        super().model_post_init(_context)
+    def __init__(self, **data):
+        super().__init__(**data)
         self.input_kwargs.setdefault("valueFormat", "YYYY-MM-DD")
 
 
@@ -560,9 +550,8 @@ class DatetimeField(BaseField):
 
     base_component = dmc.DateTimePicker
 
-    def model_post_init(self, _context):
-        """Add defaults for date input."""
-        super().model_post_init(_context)
+    def __init__(self, **data):
+        super().__init__(**data)
         self.input_kwargs.setdefault("valueFormat", "YYYY-MM-DD HH:mm")
 
 
@@ -577,19 +566,18 @@ class MonthField(BaseField):
 
     base_component = dmc.MonthPickerInput
 
-    def model_post_init(self, _context):
-        """Add defaults for date input."""
-        super().model_post_init(_context)
+    def __init__(self, **data):
+        super().__init__(**data)
         self.input_kwargs.setdefault("valueFormat", "YYYY-MM")
 
 
 class SelectField(BaseField):
     """Select field."""
 
-    data_getter: str | None = Field(
+    data_getter: Union[str, None] = Field(
         default=None, description="Function to retrieve a list of options. This function takes no argument."
     )
-    options_labels: dict | None = Field(
+    options_labels: Union[dict, None] = Field(
         default=None, description="Mapper from option to label. Especially useful for Literals and Enums."
     )
 
@@ -598,7 +586,7 @@ class SelectField(BaseField):
     getters: ClassVar[dict[str, Callable]] = {}
 
     @classmethod
-    def register_data_getter(cls, data_getter: Callable[[], list[str]], name: str | None = None):
+    def register_data_getter(cls, data_getter: Callable[[], list[str]], name: Union[str, None] = None):
         """Register a data_getter."""
         name = name or str(data_getter)
         if name in cls.getters:
@@ -769,9 +757,8 @@ class SegmentedControlField(SelectField):
 
     base_component = dmc.SegmentedControl
 
-    def model_post_init(self, _context):
-        """Add default style."""
-        super().model_post_init(_context)
+    def __init__(self, **data):
+        super().__init__(**data)
         self.input_kwargs.setdefault("style", {"alignSelf": "baseline"})
 
 

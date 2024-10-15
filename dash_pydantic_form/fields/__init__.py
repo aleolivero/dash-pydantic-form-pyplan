@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime, time
 from enum import Enum
-from typing import Literal, get_origin
+from typing import Literal, Union, get_origin
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -27,7 +27,7 @@ DEFAULT_FIELDS_REPR: dict[type, BaseField] = {
 DEFAULT_REPR = fields.Json
 
 
-def get_default_repr(field_info: FieldInfo | None, annotation: type | None = None, **kwargs) -> BaseField:  # noqa: PLR0911, PLR0912
+def get_default_repr(field_info: Union[FieldInfo, None], annotation: Union[type, None] = None, **kwargs) -> BaseField:  # noqa: PLR0911, PLR0912
     """Get default field representation."""
     if field_info is not None:
         # Add default repr kwargs
@@ -35,7 +35,7 @@ def get_default_repr(field_info: FieldInfo | None, annotation: type | None = Non
             field_info.json_schema_extra
             and (repr_kwargs := field_info.json_schema_extra.get("repr_kwargs")) is not None
         ):
-            kwargs = repr_kwargs | kwargs
+            kwargs.update(repr_kwargs)  # En Python 3.9, usamos update()
 
         # Use repr_type if provided and exists
         if field_info.json_schema_extra and (repr_type := field_info.json_schema_extra.get("repr_type")) is not None:

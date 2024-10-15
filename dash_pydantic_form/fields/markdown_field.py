@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any
+from typing import Any, Optional
 
 import dash_mantine_components as dmc
 from dash import MATCH, ClientsideFunction, Input, Output, clientside_callback, dcc, html
@@ -29,7 +29,7 @@ class MarkdownField(BaseField):
         form_id: str,
         field: str,
         parent: str = "",
-        field_info: FieldInfo | None = None,
+        field_info: Optional[FieldInfo] = None,
     ) -> Component:
         """Render the markdown field."""
         value = self.get_value(item, field, parent)
